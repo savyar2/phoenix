@@ -1,0 +1,8 @@
+langchain==0.1.0
+langchain-openai==0.0.5
+langchain-anthropic==0.1.0
+langgraph==0.0.40
+httpx==0.26.0
+pydantic==2.5.3
+structlog==24.1.0
+

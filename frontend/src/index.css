@@ -1,0 +1,31 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --phoenix-glow: rgba(249, 115, 22, 0.6);
+  --graph-node-user: #f97316;
+  --graph-node-preference: #22c55e;
+  --graph-node-constraint: #ef4444;
+  --graph-edge-default: #6b7280;
+  --graph-edge-conflict: #ef4444;
+}
+
+body {
+  @apply bg-cyber-darker text-white font-display;
+  background: 
+    radial-gradient(ellipse at top, rgba(249, 115, 22, 0.1) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
+    #050508;
+}
+
+.glass-panel {
+  @apply bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl;
+}
+
+.glow-text {
+  text-shadow: 0 0 30px var(--phoenix-glow);
+}
+

@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  # Context Router (localhost:8787)
+  router:
+    build:
+      context: ./router
+      dockerfile: Dockerfile
+    ports:
+      - "8787:8787"
+    env_file:
+      - .env
+    volumes:
+      - ./router/app:/app/app  # Hot reload in development
+      - ./wallet:/app/wallet  # Wallet store and data
+    networks:
+      - phoenix-network
+
+  # Frontend Dashboard (localhost:5173)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8787
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - phoenix-network
+    depends_on:
+      - router
+
+  # Neo4j connection (via backend service in Phase 2)
+  # Will be added in Phase 2
+
+networks:
+  phoenix-network:
+    driver: bridge
+

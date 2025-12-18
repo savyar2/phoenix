@@ -1,0 +1,85 @@
+# Environment variables
+.env
+.env.*
+.env.local
+.env.*.local
+.env.backup
+.env.bak
+*.env
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+wallet/data/
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Checkpoints and state files (may contain sensitive data)
+*.checkpoint
+*.state
+checkpoints/
+state/
+*.snapshot
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+.dockerignore
+
+# Node (for future frontend work)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Secrets and credentials
+*secret*
+*key*.pem
+*key*.key
+*.pem
+*.key
+credentials.json
+secrets.json
+config.local.json
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+*.swp
+*.swo
+*~
+
