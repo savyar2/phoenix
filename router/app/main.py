@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.api.routes import ingest, graph, memory_cards, agent, memverge, memmachine
+from app.api.routes import ingest, graph, memory_cards, agent, memverge, memmachine, profile, context_pack
 from app.services.graph_service import GraphService
 from app.services.memmachine_service import MemMachineService
 
@@ -76,10 +76,23 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS middleware (allow Chrome extension)
+# CORS middleware (allow Chrome extension, frontend, and AI chat sites)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["chrome-extension://*", "http://localhost:*", "http://127.0.0.1:*"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8787",
+        "http://127.0.0.1:8787",
+        # AI Chat sites for content script requests
+        "https://chatgpt.com",
+        "https://chat.openai.com",
+        "https://claude.ai",
+        "https://gemini.google.com",
+    ],
+    allow_origin_regex=r"(chrome-extension://.*|https://.*\.openai\.com|https://.*\.anthropic\.com|https://.*\.google\.com)",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -119,6 +132,8 @@ app.include_router(memory_cards.router, prefix="/api/memory-cards", tags=["Memor
 app.include_router(agent.router, prefix="/api/agent", tags=["Agent"])
 app.include_router(memverge.router, prefix="/api/memverge", tags=["MemVerge"])
 app.include_router(memmachine.router, prefix="/api/memmachine", tags=["MemMachine"])
+app.include_router(profile.router, prefix="/api/profile", tags=["Profile"])
+app.include_router(context_pack.router, prefix="/api/context-pack", tags=["Context Pack"])
 
 
 if __name__ == "__main__":

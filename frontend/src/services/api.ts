@@ -138,3 +138,108 @@ export const memoryCardsApi = {
     api.delete<{ success: boolean; message: string }>(`/api/memory-cards/${cardId}`),
 };
 
+// Profile Types
+export interface ProfileQuestion {
+  id: string;
+  question_text: string;
+  question_type: 'text' | 'multiple_choice' | 'scale' | 'boolean';
+  options?: string[];
+  required: boolean;
+  order: number;
+  created_at: string;
+}
+
+export interface ProfileAnswer {
+  question_id: string;
+  answer_text: string;
+  answer_data?: any;
+  answered_at: string;
+  updated_at?: string;
+}
+
+export interface SubProfile {
+  id: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  categories: string[];
+  questions: ProfileQuestion[];
+  answers: ProfileAnswer[];
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface UserProfile {
+  user_id: string;
+  main_questions: ProfileQuestion[];
+  main_answers: ProfileAnswer[];
+  sub_profiles: SubProfile[];
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface ConversationExtractionResponse {
+  success: boolean;
+  extracted_items: Array<{
+    type: string;
+    text: string;
+    category: string;
+    sub_category?: string;
+    confidence: number;
+    properties?: any;
+  }>;
+  categorized: {
+    Shopping?: any[];
+    Eating?: any[];
+    Health?: any[];
+    Work?: {
+      Finance?: any[];
+      Coding?: any[];
+      Projects?: any[];
+      Meetings?: any[];
+    };
+  };
+  message: string;
+}
+
+// Profile API
+export const profileApi = {
+  get: (userId: string) => 
+    api.get<{ success: boolean; profile: UserProfile }>(`/api/profile/${userId}`),
+  
+  create: (userId: string) => 
+    api.post<{ success: boolean; profile: UserProfile; message: string }>('/api/profile/create', { user_id: userId }),
+  
+  updateAnswer: (userId: string, questionId: string, answerText: string, answerData?: any) =>
+    api.post<{ success: boolean; answer: ProfileAnswer; message: string }>(`/api/profile/${userId}/answer`, { 
+      question_id: questionId, 
+      answer_text: answerText,
+      answer_data: answerData
+    }),
+  
+  createSubProfile: (userId: string, name: string, description: string, categories: string[]) =>
+    api.post<{ success: boolean; sub_profile: SubProfile; message: string }>(`/api/profile/${userId}/sub-profile`, { 
+      name, 
+      description,
+      categories 
+    }),
+  
+  addQuestion: (userId: string, questionText: string, questionType: 'text' | 'multiple_choice' | 'scale' | 'boolean', subProfileId?: string, options?: string[], required?: boolean, order?: number) =>
+    api.post<{ success: boolean; question: ProfileQuestion; message: string }>(`/api/profile/${userId}/question`, {
+      sub_profile_id: subProfileId,
+      question_text: questionText,
+      question_type: questionType,
+      options: options || [],
+      required: required !== undefined ? required : true,
+      order: order || 0
+    }),
+  
+  extractConversation: (userId: string, conversationText: string, messages: any[], conversationId?: string) =>
+    api.post<ConversationExtractionResponse>(`/api/profile/${userId}/extract`, {
+      conversation_id: conversationId || `conv_${Date.now()}`,
+      conversation_text: conversationText,
+      messages,
+      user_id: userId
+    }),
+};
+

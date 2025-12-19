@@ -1,20 +1,23 @@
 {
   "manifest_version": 3,
   "name": "Phoenix Protocol - Context Wallet",
-  "version": "0.1.0",
-  "description": "Magic context injection for ChatGPT, Claude, and Gemini",
+  "version": "0.2.0",
+  "description": "Magic context injection for ChatGPT, Claude, and Gemini. Your AI remembers you.",
   
   "permissions": [
     "storage",
-    "activeTab"
+    "activeTab",
+    "notifications"
   ],
   
   "host_permissions": [
     "https://chat.openai.com/*",
+    "https://chatgpt.com/*",
     "https://claude.ai/*",
     "https://gemini.google.com/*",
     "http://127.0.0.1:8787/*",
-    "http://localhost:8787/*"
+    "http://localhost:8787/*",
+    "http://localhost:5173/*"
   ],
   
   "background": {
@@ -25,6 +28,7 @@
     {
       "matches": [
         "https://chat.openai.com/*",
+        "https://chatgpt.com/*",
         "https://claude.ai/*",
         "https://gemini.google.com/*"
       ],
@@ -39,7 +43,8 @@
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
-    }
+    },
+    "default_title": "Phoenix Protocol"
   },
   
   "icons": {
@@ -48,4 +53,3 @@
     "128": "icons/icon128.png"
   }
 }
-

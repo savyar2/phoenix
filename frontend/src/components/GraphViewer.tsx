@@ -1,6 +1,5 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
-import { motion, AnimatePresence } from 'framer-motion';
 import { ZoomIn, ZoomOut, Maximize2, Plus, X, Tag, Hash, Trash2 } from 'lucide-react';
 import { memoryCardsApi, MemoryCard, CreateMemoryCardRequest } from '../services/api';
 
@@ -29,48 +28,23 @@ interface GraphViewerProps {
 }
 
 const NODE_COLORS: Record<string, string> = {
-  User: '#f97316',
-  Person: '#f97316',
-  Preference: '#22c55e',
-  Constraint: '#ef4444',
-  Goal: '#3b82f6',
-  Restaurant: '#a855f7',
-  Diet: '#f59e0b',
-  Budget: '#06b6d4',
-  Action: '#8b5cf6',
-  Entity: '#6b7280',
-  // Memory card types
-  preference: '#22c55e',
-  constraint: '#ef4444',
-  goal: '#3b82f6',
-  capability: '#a855f7',
+  User: '#f97316', Person: '#f97316', Preference: '#22c55e', Constraint: '#ef4444',
+  Goal: '#3b82f6', Restaurant: '#a855f7', Diet: '#f59e0b', Budget: '#06b6d4',
+  Action: '#8b5cf6', Entity: '#6b7280', preference: '#22c55e', constraint: '#ef4444',
+  goal: '#3b82f6', capability: '#a855f7',
 };
 
-const GraphViewer: React.FC<GraphViewerProps> = ({
-  nodes,
-  edges,
-  highlightedNode,
-  onNodeClick,
-  onCardCreated,
-}) => {
+const GraphViewer: React.FC<GraphViewerProps> = ({ nodes, edges, highlightedNode, onNodeClick, onCardCreated }) => {
   const graphRef = useRef<any>();
   const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
   const [showCardForm, setShowCardForm] = useState(false);
   const [memoryCards, setMemoryCards] = useState<MemoryCard[]>([]);
   const [selectedPersona, setSelectedPersona] = useState('Personal');
-  const [formData, setFormData] = useState<CreateMemoryCardRequest>({
-    type: 'preference',
-    text: '',
-    domain: [],
-    priority: 'soft',
-    tags: [],
-    persona: 'Personal',
-  });
+  const [formData, setFormData] = useState<CreateMemoryCardRequest>({ type: 'preference', text: '', domain: [], priority: 'soft', tags: [], persona: 'Personal' });
   const [domainInput, setDomainInput] = useState('');
   const [tagInput, setTagInput] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Fetch memory cards
   const fetchMemoryCards = useCallback(async () => {
     try {
       const response = await memoryCardsApi.list(selectedPersona);
@@ -80,52 +54,25 @@ const GraphViewer: React.FC<GraphViewerProps> = ({
     }
   }, [selectedPersona]);
 
-  useEffect(() => {
-    fetchMemoryCards();
-  }, [fetchMemoryCards]);
+  useEffect(() => { fetchMemoryCards(); }, [fetchMemoryCards]);
 
-  // Merge memory cards with graph nodes
   const allNodes = React.useMemo(() => {
     const cardNodes: GraphNode[] = memoryCards.map(card => ({
       id: `card_${card.id}`,
-      label: card.text.length > 30 ? card.text.substring(0, 30) + '...' : card.text,
+      label: card.text.length > 20 ? card.text.substring(0, 20) + '...' : card.text,
       type: card.type,
-      properties: {
-        fullText: card.text,
-        priority: card.priority,
-        domains: card.domain,
-        tags: card.tags,
-        persona: card.persona,
-      },
+      properties: { fullText: card.text, priority: card.priority, domains: card.domain, tags: card.tags },
       isMemoryCard: true,
     }));
-
-    // Create edges from memory cards to user if they have domains
-    const cardEdges: GraphEdge[] = memoryCards
-      .filter(card => card.domain.length > 0)
-      .map(card => ({
-        source: 'demo_user',
-        target: `card_${card.id}`,
-        type: 'HAS_MEMORY_CARD',
-      }));
-
-    return {
-      nodes: [...nodes, ...cardNodes],
-      edges: [...edges, ...cardEdges],
-    };
+    const cardEdges: GraphEdge[] = memoryCards.filter(card => card.domain.length > 0).map(card => ({
+      source: 'demo_user', target: `card_${card.id}`, type: 'HAS_MEMORY_CARD',
+    }));
+    return { nodes: [...nodes, ...cardNodes], edges: [...edges, ...cardEdges] };
   }, [nodes, edges, memoryCards]);
 
-  const handleZoomIn = () => {
-    graphRef.current?.zoom(1.5, 400);
-  };
-
-  const handleZoomOut = () => {
-    graphRef.current?.zoom(0.67, 400);
-  };
-
-  const handleReset = () => {
-    graphRef.current?.zoomToFit(400);
-  };
+  const handleZoomIn = () => graphRef.current?.zoom(1.5, 200);
+  const handleZoomOut = () => graphRef.current?.zoom(0.67, 200);
+  const handleReset = () => graphRef.current?.zoomToFit(200);
 
   const handleCreateCard = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,173 +80,85 @@ const GraphViewer: React.FC<GraphViewerProps> = ({
       setLoading(true);
       await memoryCardsApi.create(formData);
       setShowCardForm(false);
-      resetForm();
+      setFormData({ type: 'preference', text: '', domain: [], priority: 'soft', tags: [], persona: selectedPersona });
+      setDomainInput(''); setTagInput('');
       await fetchMemoryCards();
       onCardCreated?.();
     } catch (error) {
       console.error('Failed to create memory card:', error);
-      alert('Failed to create memory card. Check console for details.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteCard = async (cardId: string) => {
-    if (!confirm('Are you sure you want to delete this memory card?')) return;
+    if (!confirm('Delete this card?')) return;
     try {
       await memoryCardsApi.delete(cardId);
       await fetchMemoryCards();
       onCardCreated?.();
     } catch (error) {
-      console.error('Failed to delete memory card:', error);
+      console.error('Failed to delete:', error);
     }
-  };
-
-  const resetForm = () => {
-    setFormData({
-      type: 'preference',
-      text: '',
-      domain: [],
-      priority: 'soft',
-      tags: [],
-      persona: selectedPersona,
-    });
-    setDomainInput('');
-    setTagInput('');
   };
 
   const addDomain = () => {
     if (domainInput.trim() && !formData.domain.includes(domainInput.trim())) {
-      setFormData({
-        ...formData,
-        domain: [...formData.domain, domainInput.trim()],
-      });
+      setFormData({ ...formData, domain: [...formData.domain, domainInput.trim()] });
       setDomainInput('');
     }
   };
 
-  const removeDomain = (domain: string) => {
-    setFormData({
-      ...formData,
-      domain: formData.domain.filter(d => d !== domain),
-    });
-  };
-
   const addTag = () => {
     if (tagInput.trim() && !formData.tags.includes(tagInput.trim())) {
-      setFormData({
-        ...formData,
-        tags: [...formData.tags, tagInput.trim()],
-      });
+      setFormData({ ...formData, tags: [...formData.tags, tagInput.trim()] });
       setTagInput('');
     }
   };
 
-  const removeTag = (tag: string) => {
-    setFormData({
-      ...formData,
-      tags: formData.tags.filter(t => t !== tag),
-    });
-  };
-
-  const nodeColor = useCallback((node: GraphNode) => {
-    if (highlightedNode === node.id) {
-      return '#fff';
-    }
-    if (node.isMemoryCard) {
-      return NODE_COLORS[node.type] || NODE_COLORS.Entity;
-    }
-    return NODE_COLORS[node.type] || NODE_COLORS.Entity;
-  }, [highlightedNode]);
+  const nodeColor = useCallback((node: GraphNode) => highlightedNode === node.id ? '#fff' : NODE_COLORS[node.type] || NODE_COLORS.Entity, [highlightedNode]);
 
   const nodeCanvasObject = useCallback((node: GraphNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
     const label = node.label || node.id;
-    const fontSize = 12 / globalScale;
-    const nodeSize = highlightedNode === node.id ? 10 : node.isMemoryCard ? 8 : 6;
-    
-    // Node circle
+    const fontSize = Math.max(11 / globalScale, 3);
+    const nodeSize = node.isMemoryCard ? 7 : 5;
     ctx.beginPath();
     ctx.arc(node.x!, node.y!, nodeSize, 0, 2 * Math.PI);
     ctx.fillStyle = nodeColor(node);
     ctx.fill();
-    
-    // Glow effect for highlighted node or memory cards
-    if (highlightedNode === node.id || node.isMemoryCard) {
-      ctx.shadowColor = node.isMemoryCard ? NODE_COLORS[node.type] || '#f97316' : '#f97316';
-      ctx.shadowBlur = 15;
-      ctx.fill();
-      ctx.shadowBlur = 0;
-    }
-    
-    // Label
-    ctx.font = `${fontSize}px 'Space Grotesk', sans-serif`;
+    ctx.font = `${fontSize}px sans-serif`;
     ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
     ctx.fillText(label, node.x!, node.y! + nodeSize + fontSize);
-  }, [highlightedNode, nodeColor]);
+  }, [nodeColor]);
 
   const linkColor = useCallback((link: GraphEdge) => {
-    if (link.type === 'CONFLICTS_WITH') {
-      return '#ef4444';
-    }
-    if (link.type === 'HAS_CONSTRAINT' || link.type === 'HAS_GOAL' || link.type === 'HAS_MEMORY_CARD') {
-      return '#f59e0b';
-    }
-    return 'rgba(255, 255, 255, 0.3)';
+    if (link.type === 'CONFLICTS_WITH') return '#ef4444';
+    if (link.type === 'HAS_CONSTRAINT' || link.type === 'HAS_GOAL' || link.type === 'HAS_MEMORY_CARD') return '#f59e0b';
+    return 'rgba(255,255,255,0.15)';
   }, []);
 
   const cardTypes = ['constraint', 'preference', 'goal', 'capability'] as const;
 
   return (
-    <motion.div
-      className="glass-panel p-4 h-full flex flex-col relative"
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.5 }}
-    >
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <span className="text-2xl">💎</span>
-          Memory Graph
+    <div className="glass-panel p-3 h-full w-full flex flex-col relative overflow-hidden">
+      <div className="flex justify-between items-center mb-2 flex-shrink-0">
+        <h2 className="text-sm font-semibold flex items-center gap-2">
+          <span className="text-lg">💎</span> Memory Graph
         </h2>
         <div className="flex items-center gap-2">
-          <select
-            value={selectedPersona}
-            onChange={(e) => setSelectedPersona(e.target.value)}
-            className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-phoenix-500/50"
-          >
+          <select value={selectedPersona} onChange={(e) => setSelectedPersona(e.target.value)} className="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs">
             <option value="Personal">Personal</option>
             <option value="Work">Work</option>
             <option value="Travel">Travel</option>
           </select>
-          <div className="flex gap-2">
-            <button
-              onClick={handleZoomIn}
-              className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-              aria-label="Zoom in"
-            >
-              <ZoomIn size={16} />
-            </button>
-            <button
-              onClick={handleZoomOut}
-              className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-              aria-label="Zoom out"
-            >
-              <ZoomOut size={16} />
-            </button>
-            <button
-              onClick={handleReset}
-              className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-              aria-label="Reset view"
-            >
-              <Maximize2 size={16} />
-            </button>
-          </div>
+          <button onClick={handleZoomIn} className="p-1.5 rounded bg-white/10 hover:bg-white/20"><ZoomIn size={14} /></button>
+          <button onClick={handleZoomOut} className="p-1.5 rounded bg-white/10 hover:bg-white/20"><ZoomOut size={14} /></button>
+          <button onClick={handleReset} className="p-1.5 rounded bg-white/10 hover:bg-white/20"><Maximize2 size={14} /></button>
         </div>
       </div>
       
-      <div className="h-[calc(100%-60px)] rounded-xl overflow-hidden bg-black/30 relative">
+      <div className="flex-1 rounded overflow-hidden bg-black/30 relative min-h-0">
         <ForceGraph2D
           ref={graphRef}
           graphData={{ nodes: allNodes.nodes, links: allNodes.edges }}
@@ -307,267 +166,113 @@ const GraphViewer: React.FC<GraphViewerProps> = ({
           nodeColor={nodeColor}
           nodeCanvasObject={nodeCanvasObject}
           linkColor={linkColor}
-          linkDirectionalArrowLength={4}
+          linkDirectionalArrowLength={3}
           linkDirectionalArrowRelPos={1}
-          linkCurvature={0.2}
+          linkCurvature={0.1}
           onNodeClick={(node) => onNodeClick?.(node as GraphNode)}
           onNodeHover={(node) => setHoveredNode(node as GraphNode)}
           backgroundColor="transparent"
-          cooldownTicks={100}
+          cooldownTicks={30}
+          warmupTicks={10}
         />
-
-        {/* Floating Add Card Button */}
-        <motion.button
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-          onClick={() => setShowCardForm(true)}
-          className="absolute bottom-4 right-4 w-12 h-12 bg-phoenix-500 hover:bg-phoenix-600 rounded-full shadow-lg shadow-phoenix-500/50 flex items-center justify-center transition-colors z-10"
-          title="Add Memory Card"
-        >
-          <Plus size={24} />
-        </motion.button>
+        <button onClick={() => setShowCardForm(true)} className="absolute bottom-3 right-3 w-10 h-10 bg-phoenix-500 hover:bg-phoenix-600 rounded-full shadow-lg flex items-center justify-center z-10">
+          <Plus size={20} />
+        </button>
       </div>
       
       {/* Legend */}
-      <div className="absolute bottom-6 left-6 flex flex-wrap gap-3 text-xs z-10">
-        {Object.entries(NODE_COLORS).slice(0, 5).map(([type, color]) => (
+      <div className="absolute bottom-4 left-4 flex gap-2 text-xs z-10">
+        {['Preference', 'Constraint', 'Goal'].map(type => (
           <div key={type} className="flex items-center gap-1">
-            <div
-              className="w-3 h-3 rounded-full"
-              style={{ backgroundColor: color }}
-            />
-            <span className="text-white/60">{type}</span>
+            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: NODE_COLORS[type] }} />
+            <span className="text-white/50">{type}</span>
           </div>
         ))}
       </div>
       
-      {/* Hovered node info */}
+      {/* Hover info */}
       {hoveredNode && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="absolute top-20 right-6 bg-black/90 backdrop-blur-sm p-3 rounded-lg text-sm max-w-[250px] z-10 border border-white/10"
-        >
-          <div className="font-semibold">{hoveredNode.label}</div>
-          <div className="text-white/60 text-xs mt-1">Type: {hoveredNode.type}</div>
-          {hoveredNode.isMemoryCard && hoveredNode.properties && (
-            <div className="mt-2 pt-2 border-t border-white/10">
-              {hoveredNode.properties.fullText && (
-                <div className="text-xs text-white/80 mb-1">{hoveredNode.properties.fullText as string}</div>
-              )}
-              {hoveredNode.properties.domains && (hoveredNode.properties.domains as string[]).length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {(hoveredNode.properties.domains as string[]).map((domain: string) => (
-                    <span key={domain} className="text-xs px-1.5 py-0.5 bg-phoenix-500/20 text-phoenix-400 rounded">
-                      {domain}
+        <div className="absolute top-12 right-3 bg-black/90 p-2 rounded text-xs max-w-[180px] z-10 border border-white/10">
+          <div className="font-medium truncate">{hoveredNode.label}</div>
+          <div className="text-white/50">{hoveredNode.type}</div>
+          {hoveredNode.isMemoryCard && hoveredNode.properties?.fullText && (
+            <div className="text-white/70 mt-1 line-clamp-2">{hoveredNode.properties.fullText as string}</div>
+          )}
+          {hoveredNode.id.startsWith('card_') && (
+            <button onClick={() => handleDeleteCard(hoveredNode.id.replace('card_', ''))} className="mt-1.5 px-1.5 py-0.5 text-xs bg-red-500/20 text-red-400 rounded flex items-center gap-1">
+              <Trash2 size={10} /> Delete
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Card Form Modal */}
+      {showCardForm && (
+        <div className="absolute inset-0 bg-black/80 z-20 flex items-center justify-center p-3" onClick={(e) => e.target === e.currentTarget && setShowCardForm(false)}>
+          <div className="bg-cyber-darker border border-white/20 rounded-lg p-4 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-base font-semibold">Add Memory Card</h3>
+              <button onClick={() => setShowCardForm(false)} className="p-1 hover:bg-white/10 rounded"><X size={16} /></button>
+            </div>
+            <form onSubmit={handleCreateCard} className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-white/50 uppercase mb-1">Type</label>
+                  <select value={formData.type} onChange={(e) => setFormData({ ...formData, type: e.target.value as any })} className="w-full bg-white/5 border border-white/10 rounded px-2 py-1.5 text-xs">
+                    {cardTypes.map(type => <option key={type} value={type}>{type}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-white/50 uppercase mb-1">Priority</label>
+                  <select value={formData.priority} onChange={(e) => setFormData({ ...formData, priority: e.target.value as 'hard' | 'soft' })} className="w-full bg-white/5 border border-white/10 rounded px-2 py-1.5 text-xs">
+                    <option value="soft">Soft</option>
+                    <option value="hard">Hard</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-white/50 uppercase mb-1">Text</label>
+                <textarea value={formData.text} onChange={(e) => setFormData({ ...formData, text: e.target.value })} placeholder="Enter constraint, preference..." required rows={2} className="w-full bg-white/5 border border-white/10 rounded px-2 py-1.5 text-xs placeholder:text-white/30" />
+              </div>
+              <div>
+                <label className="block text-xs text-white/50 uppercase mb-1">Domains</label>
+                <div className="flex gap-1 mb-1">
+                  <input type="text" value={domainInput} onChange={(e) => setDomainInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addDomain())} placeholder="food, shopping..." className="flex-1 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs" />
+                  <button type="button" onClick={addDomain} className="px-2 bg-white/10 rounded"><Plus size={12} /></button>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {formData.domain.map(d => (
+                    <span key={d} className="flex items-center gap-1 px-1.5 py-0.5 bg-phoenix-500/20 text-phoenix-400 rounded text-xs">
+                      <Hash size={10} />{d}
+                      <button type="button" onClick={() => setFormData({ ...formData, domain: formData.domain.filter(x => x !== d) })}><X size={10} /></button>
                     </span>
                   ))}
                 </div>
-              )}
-              {hoveredNode.properties.priority && (
-                <div className="text-xs mt-1">
-                  Priority: <span className="text-phoenix-400">{hoveredNode.properties.priority as string}</span>
-                </div>
-              )}
-              {hoveredNode.id.startsWith('card_') && (
-                <button
-                  onClick={() => handleDeleteCard(hoveredNode.id.replace('card_', ''))}
-                  className="mt-2 px-2 py-1 text-xs bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded transition-colors"
-                >
-                  <Trash2 size={12} className="inline mr-1" />
-                  Delete
-                </button>
-              )}
-            </div>
-          )}
-        </motion.div>
-      )}
-
-      {/* Memory Card Creation Form Modal */}
-      <AnimatePresence>
-        {showCardForm && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/80 backdrop-blur-sm z-20 flex items-center justify-center p-4"
-            onClick={(e) => e.target === e.currentTarget && setShowCardForm(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-cyber-darker border border-white/20 rounded-2xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-semibold">Create Memory Card</h3>
-                <button
-                  onClick={() => {
-                    setShowCardForm(false);
-                    resetForm();
-                  }}
-                  className="p-1 hover:bg-white/10 rounded-lg transition-colors"
-                >
-                  <X size={20} />
-                </button>
               </div>
-
-              <form onSubmit={handleCreateCard} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs text-white/50 uppercase tracking-wider mb-2">
-                      Type
-                    </label>
-                    <select
-                      value={formData.type}
-                      onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
-                      className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-phoenix-500/50"
-                    >
-                      {cardTypes.map(type => (
-                        <option key={type} value={type}>{type}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs text-white/50 uppercase tracking-wider mb-2">
-                      Priority
-                    </label>
-                    <select
-                      value={formData.priority}
-                      onChange={(e) => setFormData({ ...formData, priority: e.target.value as 'hard' | 'soft' })}
-                      className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-phoenix-500/50"
-                    >
-                      <option value="soft">Soft</option>
-                      <option value="hard">Hard</option>
-                    </select>
-                  </div>
+              <div>
+                <label className="block text-xs text-white/50 uppercase mb-1">Tags</label>
+                <div className="flex gap-1 mb-1">
+                  <input type="text" value={tagInput} onChange={(e) => setTagInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())} placeholder="diet, budget..." className="flex-1 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs" />
+                  <button type="button" onClick={addTag} className="px-2 bg-white/10 rounded"><Plus size={12} /></button>
                 </div>
-
-                <div>
-                  <label className="block text-xs text-white/50 uppercase tracking-wider mb-2">
-                    Text
-                  </label>
-                  <textarea
-                    value={formData.text}
-                    onChange={(e) => setFormData({ ...formData, text: e.target.value })}
-                    placeholder="Enter the constraint, preference, goal, or capability..."
-                    required
-                    rows={3}
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm placeholder:text-white/30 focus:outline-none focus:border-phoenix-500/50"
-                  />
+                <div className="flex flex-wrap gap-1">
+                  {formData.tags.map(t => (
+                    <span key={t} className="flex items-center gap-1 px-1.5 py-0.5 bg-purple-500/20 text-purple-400 rounded text-xs">
+                      <Tag size={10} />{t}
+                      <button type="button" onClick={() => setFormData({ ...formData, tags: formData.tags.filter(x => x !== t) })}><X size={10} /></button>
+                    </span>
+                  ))}
                 </div>
-
-                <div>
-                  <label className="block text-xs text-white/50 uppercase tracking-wider mb-2">
-                    Domains
-                  </label>
-                  <div className="flex gap-2 mb-2">
-                    <input
-                      type="text"
-                      value={domainInput}
-                      onChange={(e) => setDomainInput(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addDomain())}
-                      placeholder="e.g., food, shopping, coding"
-                      className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm placeholder:text-white/30 focus:outline-none focus:border-phoenix-500/50"
-                    />
-                    <button
-                      type="button"
-                      onClick={addDomain}
-                      className="px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
-                    >
-                      <Plus size={16} />
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {formData.domain.map(domain => (
-                      <span
-                        key={domain}
-                        className="flex items-center gap-1 px-2 py-1 bg-phoenix-500/20 text-phoenix-400 rounded-lg text-xs"
-                      >
-                        <Hash size={12} />
-                        {domain}
-                        <button
-                          type="button"
-                          onClick={() => removeDomain(domain)}
-                          className="ml-1 hover:text-red-400"
-                        >
-                          <X size={12} />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs text-white/50 uppercase tracking-wider mb-2">
-                    Tags
-                  </label>
-                  <div className="flex gap-2 mb-2">
-                    <input
-                      type="text"
-                      value={tagInput}
-                      onChange={(e) => setTagInput(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
-                      placeholder="e.g., diet, budget, health"
-                      className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm placeholder:text-white/30 focus:outline-none focus:border-phoenix-500/50"
-                    />
-                    <button
-                      type="button"
-                      onClick={addTag}
-                      className="px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
-                    >
-                      <Plus size={16} />
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {formData.tags.map(tag => (
-                      <span
-                        key={tag}
-                        className="flex items-center gap-1 px-2 py-1 bg-purple-500/20 text-purple-400 rounded-lg text-xs"
-                      >
-                        <Tag size={12} />
-                        {tag}
-                        <button
-                          type="button"
-                          onClick={() => removeTag(tag)}
-                          className="ml-1 hover:text-red-400"
-                        >
-                          <X size={12} />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-2 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowCardForm(false);
-                      resetForm();
-                    }}
-                    className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <motion.button
-                    type="submit"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    disabled={loading || !formData.text.trim()}
-                    className="flex items-center gap-2 px-4 py-2 bg-phoenix-500 hover:bg-phoenix-600 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <Plus size={18} />
-                    Create Card
-                  </motion.button>
-                </div>
-              </form>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+              </div>
+              <div className="flex justify-end gap-2 pt-1">
+                <button type="button" onClick={() => setShowCardForm(false)} className="px-3 py-1.5 bg-white/10 rounded text-xs">Cancel</button>
+                <button type="submit" disabled={loading || !formData.text.trim()} className="px-3 py-1.5 bg-phoenix-500 rounded text-xs font-medium disabled:opacity-50">Create</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 

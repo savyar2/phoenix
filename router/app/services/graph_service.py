@@ -267,6 +267,212 @@ class GraphService:
             return {"resolution": "no_data", "reasoning": "No preferences found for this type"}
     
     @classmethod
+    async def add_memory_card_to_graph(cls, card_id: str, card_text: str, card_type: str,
+                                        domain: list, tags: list, persona: str = "Personal") -> dict:
+        """
+        Add a memory card to the graph with tag relationships.
+        
+        Creates:
+        - MemoryCard node with properties
+        - Tag nodes for each tag
+        - HAS_TAG relationships between card and tags
+        - SHARES_TAG relationships between cards that share tags
+        """
+        async with cls.session() as session:
+            # Create memory card node and its tag relationships
+            query = """
+            // Create or merge the memory card node
+            MERGE (card:MemoryCard {id: $card_id})
+            ON CREATE SET
+                card.text = $card_text,
+                card.type = $card_type,
+                card.persona = $persona,
+                card.created_at = datetime()
+            ON MATCH SET
+                card.text = $card_text,
+                card.updated_at = datetime()
+            
+            // Set domain as property
+            SET card.domain = $domain
+            
+            // Create tag nodes and relationships
+            WITH card
+            UNWIND $tags as tag_name
+            MERGE (tag:Tag {name: tag_name})
+            MERGE (card)-[:HAS_TAG]->(tag)
+            
+            // Find other cards that share this tag and create SHARES_TAG relationship
+            WITH card, tag
+            MATCH (other:MemoryCard)-[:HAS_TAG]->(tag)
+            WHERE other.id <> card.id
+            MERGE (card)-[r:SHARES_TAG]-(other)
+            ON CREATE SET r.shared_tag = tag.name, r.created_at = datetime()
+            
+            RETURN card.id as card_id, count(DISTINCT tag) as tag_count
+            """
+            
+            result = await session.run(query, {
+                "card_id": card_id,
+                "card_text": card_text,
+                "card_type": card_type,
+                "domain": domain,
+                "tags": tags,
+                "persona": persona
+            })
+            
+            record = await result.single()
+            
+            logger.info(f"Added memory card to graph: {card_id} with {len(tags)} tags")
+            
+            return {
+                "success": True,
+                "card_id": card_id,
+                "tag_count": record["tag_count"] if record else 0
+            }
+    
+    @classmethod
+    async def get_related_memories_by_tags(cls, tags: list, persona: str = "Personal", 
+                                           limit: int = 10) -> list:
+        """
+        Find memory cards that match the given tags, ordered by relevance.
+        
+        Uses graph traversal to find cards connected through shared tags.
+        """
+        async with cls.session() as session:
+            query = """
+            // Find tags that match the input
+            UNWIND $tags as search_tag
+            MATCH (tag:Tag)
+            WHERE toLower(tag.name) CONTAINS toLower(search_tag)
+               OR toLower(search_tag) CONTAINS toLower(tag.name)
+            
+            // Find memory cards connected to these tags
+            MATCH (card:MemoryCard)-[:HAS_TAG]->(tag)
+            WHERE card.persona = $persona
+            
+            // Count tag matches for relevance scoring
+            WITH card, count(DISTINCT tag) as tag_matches, collect(tag.name) as matched_tags
+            
+            // Also get all tags for the card
+            MATCH (card)-[:HAS_TAG]->(all_tags:Tag)
+            WITH card, tag_matches, matched_tags, collect(all_tags.name) as all_card_tags
+            
+            RETURN {
+                id: card.id,
+                text: card.text,
+                type: card.type,
+                domain: card.domain,
+                tags: all_card_tags,
+                matched_tags: matched_tags,
+                relevance_score: toFloat(tag_matches) / toFloat(size($tags))
+            } as memory
+            ORDER BY memory.relevance_score DESC
+            LIMIT $limit
+            """
+            
+            result = await session.run(query, {
+                "tags": tags,
+                "persona": persona,
+                "limit": limit
+            })
+            
+            records = await result.data()
+            return [r["memory"] for r in records]
+    
+    @classmethod
+    async def find_conflicting_memories(cls, card_id: str) -> list:
+        """
+        Find memories that might conflict with the given card.
+        
+        Uses graph patterns to detect potential conflicts:
+        - Cards with opposite preferences (cheap vs quality, etc.)
+        - Cards in the same domain with contradictory implications
+        """
+        async with cls.session() as session:
+            query = """
+            MATCH (card:MemoryCard {id: $card_id})
+            
+            // Find cards that share tags but might conflict
+            MATCH (card)-[:HAS_TAG]->(tag)<-[:HAS_TAG]-(other:MemoryCard)
+            WHERE other.id <> card.id
+            
+            // Check for conflict indicators in text
+            WITH card, other, tag,
+                 CASE
+                     WHEN (card.text CONTAINS 'quality' AND other.text CONTAINS 'cheap')
+                       OR (card.text CONTAINS 'cheap' AND other.text CONTAINS 'quality')
+                     THEN 'price_quality_conflict'
+                     WHEN (card.text CONTAINS 'lots of options' AND other.text CONTAINS 'few options')
+                       OR (card.text CONTAINS 'few options' AND other.text CONTAINS 'lots of options')
+                     THEN 'options_conflict'
+                     WHEN (card.text CONTAINS 'health' AND other.text CONTAINS 'taste')
+                       OR (card.text CONTAINS 'taste' AND other.text CONTAINS 'health')
+                     THEN 'health_taste_conflict'
+                     ELSE null
+                 END as conflict_type
+            WHERE conflict_type IS NOT NULL
+            
+            RETURN DISTINCT {
+                card_id: other.id,
+                text: other.text,
+                conflict_type: conflict_type,
+                shared_tag: tag.name
+            } as conflict
+            """
+            
+            result = await session.run(query, {"card_id": card_id})
+            records = await result.data()
+            return [r["conflict"] for r in records]
+    
+    @classmethod
+    async def get_memory_graph_visualization(cls, persona: str = "Personal", limit: int = 100) -> dict:
+        """Get memory card graph data for frontend visualization."""
+        async with cls.session() as session:
+            query = """
+            MATCH (card:MemoryCard {persona: $persona})-[:HAS_TAG]->(tag:Tag)
+            WITH card, collect(tag.name) as tags
+            OPTIONAL MATCH (card)-[r:SHARES_TAG]-(other:MemoryCard)
+            RETURN card, tags, collect(DISTINCT {other_id: other.id, shared: r.shared_tag}) as connections
+            LIMIT $limit
+            """
+            
+            result = await session.run(query, {"persona": persona, "limit": limit})
+            records = await result.data()
+            
+            nodes = []
+            edges = []
+            seen_edges = set()
+            
+            for record in records:
+                card = record['card']
+                card_id = card.get('id', '')
+                
+                # Add card node
+                nodes.append({
+                    "id": card_id,
+                    "label": card.get('text', '')[:40] + "...",
+                    "type": card.get('type', 'preference'),
+                    "domain": card.get('domain', []),
+                    "tags": record['tags'],
+                    "full_text": card.get('text', '')
+                })
+                
+                # Add edges for shared tags
+                for conn in record['connections']:
+                    if conn['other_id']:
+                        edge_key = tuple(sorted([card_id, conn['other_id']]))
+                        if edge_key not in seen_edges:
+                            edges.append({
+                                "source": card_id,
+                                "target": conn['other_id'],
+                                "type": "SHARES_TAG",
+                                "shared_tag": conn['shared']
+                            })
+                            seen_edges.add(edge_key)
+            
+            return {"nodes": nodes, "edges": edges}
+
+    @classmethod
     async def get_graph_visualization(cls, user_id: str, limit: int = 50) -> dict:
         """Get graph data formatted for frontend visualization."""
         async with cls.session() as session:

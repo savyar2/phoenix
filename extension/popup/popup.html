@@ -4,34 +4,350 @@
     <meta charset="UTF-8">
     <title>Phoenix Protocol</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
         body {
-            width: 300px;
-            padding: 16px;
+            width: 360px;
+            min-height: 400px;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(180deg, #0f0f1a 0%, #1a1a2e 100%);
+            color: #e0e0e0;
         }
-        h1 {
+        
+        .header {
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            text-align: center;
+        }
+        
+        .header h1 {
             font-size: 18px;
-            margin: 0 0 16px 0;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
-        .status {
-            padding: 8px;
-            border-radius: 4px;
-            margin-bottom: 16px;
+        
+        .header .subtitle {
+            font-size: 11px;
+            color: rgba(255,255,255,0.7);
+            margin-top: 4px;
         }
-        .status.connected {
-            background-color: #d4edda;
-            color: #155724;
+        
+        .status-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: #252540;
+            border-bottom: 1px solid #333;
         }
-        .status.disconnected {
-            background-color: #f8d7da;
-            color: #721c24;
+        
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #888;
+        }
+        
+        .status-dot.connected {
+            background: #00d26a;
+            box-shadow: 0 0 8px rgba(0, 210, 106, 0.5);
+        }
+        
+        .status-dot.disconnected {
+            background: #ff4757;
+        }
+        
+        .section {
+            padding: 16px;
+            border-bottom: 1px solid #252540;
+        }
+        
+        .section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #888;
+            margin-bottom: 12px;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Toggle Switch */
+        .toggle-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+        }
+        
+        .toggle-label {
+            font-size: 13px;
+        }
+        
+        .toggle-desc {
+            font-size: 11px;
+            color: #666;
+            margin-top: 2px;
+        }
+        
+        .toggle {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            background: #444;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .toggle.active {
+            background: #667eea;
+        }
+        
+        .toggle::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .toggle.active::after {
+            transform: translateX(20px);
+        }
+        
+        /* Persona Selector */
+        .persona-selector {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        
+        .persona-btn {
+            flex: 1;
+            padding: 10px 12px;
+            background: #252540;
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: #aaa;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        
+        .persona-btn:hover {
+            border-color: #667eea;
+            color: #fff;
+        }
+        
+        .persona-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: transparent;
+            color: white;
+        }
+        
+        /* Context Preview */
+        .context-preview {
+            background: #1a1a2e;
+            border-radius: 8px;
+            padding: 12px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        
+        .context-card {
+            background: #252540;
+            padding: 10px 12px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            border-left: 3px solid #667eea;
+        }
+        
+        .context-card:last-child {
+            margin-bottom: 0;
+        }
+        
+        .context-card-type {
+            font-size: 9px;
+            text-transform: uppercase;
+            color: #667eea;
+            margin-bottom: 4px;
+        }
+        
+        .context-card-text {
+            font-size: 12px;
+            color: #ddd;
+            line-height: 1.4;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 12px;
+        }
+        
+        /* Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+        
+        .stat-box {
+            background: #252540;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 20px;
+            font-weight: 600;
+            color: #667eea;
+        }
+        
+        .stat-label {
+            font-size: 10px;
+            color: #888;
+            margin-top: 4px;
+            text-transform: uppercase;
+        }
+        
+        /* Footer Actions */
+        .footer {
+            padding: 16px;
+            display: flex;
+            gap: 8px;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+        
+        .btn-secondary {
+            background: #252540;
+            color: #aaa;
+            border: 1px solid #333;
+        }
+        
+        .btn-secondary:hover {
+            border-color: #667eea;
+            color: #fff;
+        }
+        
+        /* Loading */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid transparent;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
-    <h1>🔥 Phoenix Protocol</h1>
-    <div id="status" class="status disconnected">Checking connection...</div>
+    <div class="header">
+        <h1>🔥 Phoenix Protocol</h1>
+        <div class="subtitle">AI Context Injection</div>
+    </div>
+    
+    <div class="status-bar">
+        <div class="status-indicator">
+            <div class="status-dot" id="status-dot"></div>
+            <span id="status-text">Checking...</span>
+        </div>
+        <div class="toggle active" id="main-toggle"></div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">Active Persona</div>
+        <div class="persona-selector">
+            <button class="persona-btn active" data-persona="Personal">👤 Personal</button>
+            <button class="persona-btn" data-persona="Work">💼 Work</button>
+            <button class="persona-btn" data-persona="Travel">✈️ Travel</button>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">Quick Stats</div>
+        <div class="stats-grid">
+            <div class="stat-box">
+                <div class="stat-value" id="stat-cards">-</div>
+                <div class="stat-label">Cards</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="stat-injections">0</div>
+                <div class="stat-label">Injections</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="stat-extracts">0</div>
+                <div class="stat-label">Extracts</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-title">Context Preview</div>
+        <div class="context-preview" id="context-preview">
+            <div class="loading">
+                <div class="spinner"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <button class="btn btn-secondary" id="btn-dashboard">Dashboard</button>
+        <button class="btn btn-primary" id="btn-refresh">Refresh Context</button>
+    </div>
+    
     <script src="popup.js"></script>
 </body>
 </html>
-

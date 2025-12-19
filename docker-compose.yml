@@ -10,11 +10,17 @@ services:
       - "8787:8787"
     env_file:
       - .env
+    environment:
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=phoenix_graph
     volumes:
       - ./router/app:/app/app  # Hot reload in development
       - ./wallet:/app/wallet  # Wallet store and data
     networks:
       - phoenix-network
+    depends_on:
+      - neo4j
 
   # Frontend Dashboard (localhost:5173)
   frontend:
@@ -33,10 +39,33 @@ services:
     depends_on:
       - router
 
-  # Neo4j connection (via backend service in Phase 2)
-  # Will be added in Phase 2
+  # Neo4j Graph Database
+  neo4j:
+    image: neo4j:5.15.0-community
+    ports:
+      - "7474:7474"  # HTTP browser
+      - "7687:7687"  # Bolt protocol
+    environment:
+      - NEO4J_AUTH=neo4j/phoenix_graph
+      - NEO4J_PLUGINS=["apoc"]
+      - NEO4J_dbms_security_procedures_unrestricted=apoc.*
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    networks:
+      - phoenix-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider http://localhost:7474 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
 
 networks:
   phoenix-network:
     driver: bridge
+
+volumes:
+  neo4j_data:
+  neo4j_logs:
 

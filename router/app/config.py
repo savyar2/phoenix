@@ -8,8 +8,10 @@ from pydantic_settings import BaseSettings
 from pydantic import Field
 
 
-# Find project root (where .env file is located)
-PROJECT_ROOT = Path(__file__).parent.parent.parent
+# Find project root (where wallet/ directory lives)
+# In Docker: /app/app/config.py -> PROJECT_ROOT = /app
+# In local: router/app/config.py -> PROJECT_ROOT = router/
+PROJECT_ROOT = Path(__file__).parent.parent  # Two levels up from config.py
 ENV_FILE = PROJECT_ROOT / ".env"
 
 
@@ -21,27 +23,20 @@ class Settings(BaseSettings):
     router_port: int = Field(default=8787, env="ROUTER_PORT")
     
     # Neo4j
-    neo4j_uri: str = Field(..., env="NEO4J_URI")
+    neo4j_uri: str = Field(default="bolt://localhost:7687", env="NEO4J_URI")
     neo4j_user: str = Field(default="neo4j", env="NEO4J_USER")
-    neo4j_password: str = Field(..., env="NEO4J_PASSWORD")
+    neo4j_password: str = Field(default="phoenix_graph", env="NEO4J_PASSWORD")
     
     # Wallet Store
     wallet_store_path: str = Field(default="./wallet/data/wallet.db", env="WALLET_STORE_PATH")
     wallet_encryption_key: str = Field(..., env="WALLET_ENCRYPTION_KEY")
     wallet_default_persona: str = Field(default="Personal", env="WALLET_DEFAULT_PERSONA")
     
-    # LLM Providers (Server-Side API Keys - NOT from user .env)
-    # These are read from server environment variables, not user config
-    openai_api_key: str | None = Field(
-        default=None, 
-        env="PHOENIX_OPENAI_API_KEY"  # Server-side key, not user key
-    )
-    openai_model: str = Field(default="gpt-4o-mini", env="PHOENIX_OPENAI_MODEL")
-    anthropic_api_key: str | None = Field(
-        default=None,
-        env="PHOENIX_ANTHROPIC_API_KEY"  # Server-side key, not user key
-    )
-    anthropic_model: str = Field(default="claude-3-haiku-20240307", env="PHOENIX_ANTHROPIC_MODEL")
+    # LLM Providers (Server-Side API Keys)
+    openai_api_key: str | None = Field(default=None, alias="PHOENIX_OPENAI_API_KEY")
+    openai_model: str = Field(default="gpt-4o-mini", alias="PHOENIX_OPENAI_MODEL")
+    anthropic_api_key: str | None = Field(default=None, alias="PHOENIX_ANTHROPIC_API_KEY")
+    anthropic_model: str = Field(default="claude-3-haiku-20240307", alias="PHOENIX_ANTHROPIC_MODEL")
     
     # Local LLM (fallback)
     ollama_model: str = Field(default="llama3.2", env="OLLAMA_MODEL")
